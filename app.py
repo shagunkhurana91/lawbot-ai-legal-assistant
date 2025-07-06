@@ -44,25 +44,18 @@ def get_vectorstore():
     persist_dir = "faiss_index"
     zip_path = "faiss_index.zip"
 
+    # ✅ Unzip if folder doesn't exist
     if not os.path.exists(persist_dir) and os.path.exists(zip_path):
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             zip_ref.extractall(persist_dir)
 
+    # ✅ Try to load saved FAISS index
     if os.path.exists(persist_dir):
         return FAISS.load_local(persist_dir, embeddings)
 
-    docs = []
-    for filename in os.listdir("data"):
-        if filename.endswith(".pdf"):
-            loader = PyMuPDFLoader(f"data/{filename}")
-            loaded = loader.load()
-            splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
-            chunks = splitter.split_documents(loaded)
-            docs.extend(chunks)
-
-    vectordb = FAISS.from_documents(docs, embedding=embeddings)
-    vectordb.save_local(persist_dir)
-    return vectordb
+    # Optional fallback
+    st.error("❌ FAISS index not found and no PDFs to create one.")
+    st.stop()
 
 vectorstore = get_vectorstore()
 
