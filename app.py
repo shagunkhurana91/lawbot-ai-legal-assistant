@@ -44,20 +44,18 @@ def get_vectorstore():
     persist_dir = "faiss_index"
     zip_path = "faiss_index.zip"
 
-    # ✅ Unzip if folder doesn't exist
+    # Automatically unzip if needed
     if not os.path.exists(persist_dir) and os.path.exists(zip_path):
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             zip_ref.extractall(persist_dir)
 
-    # ✅ Try to load saved FAISS index
     if os.path.exists(persist_dir):
         return FAISS.load_local(persist_dir, embeddings)
 
-    # Optional fallback
-    st.error("❌ FAISS index not found and no PDFs to create one.")
+    # Optional: fallback if no FAISS index found
+    st.error("❌ FAISS index not found. Please upload 'faiss_index.zip' with index.faiss and index.pkl inside.")
     st.stop()
 
-vectorstore = get_vectorstore()
 
 st.sidebar.title("⚖️ Indian LawBot")
 st.sidebar.markdown("""
