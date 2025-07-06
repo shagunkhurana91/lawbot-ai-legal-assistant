@@ -6,7 +6,7 @@ from deep_translator import GoogleTranslator
 from langdetect import detect
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
-from langchain_community.vectorstores import FAISS, Chroma
+from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 import torch
 from langchain.document_loaders import PyMuPDFLoader
