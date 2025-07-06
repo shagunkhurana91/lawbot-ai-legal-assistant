@@ -70,12 +70,7 @@ GROQ_API_KEY = "your_groq_api_key"
 ## 📦 Run Locally
 
 ```bash
-git clone https://github.com/yourusername/lawbot.git
-cd lawbot
+git clone https://github.com/shagunkhurana91/lawbot-ai-legal-assistant.git
+cd lawbot-ai-legal-assistant
 pip install -r requirements.txt
 streamlit run app.py
-```
-
-Make sure to add your law PDFs to the `data/` folder.
-
----
