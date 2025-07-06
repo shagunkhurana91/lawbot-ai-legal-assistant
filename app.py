@@ -1,29 +1,25 @@
 import os
+import zipfile
 import fitz
 import streamlit as st
 from deep_translator import GoogleTranslator
 from langdetect import detect
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
-from langchain_community.vectorstores import FAISS
+from langchain_community.vectorstores import FAISS, Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 import torch
-
 from langchain.document_loaders import PyMuPDFLoader
-
-torch.set_default_device("cpu")
-
 from langchain.chains import RetrievalQA
 from langchain_groq import ChatGroq
-
-# 🎙️ Voice Input Support
 import speech_recognition as sr
 from pydub import AudioSegment
 import tempfile
 from gtts import gTTS
 import base64
 
-# 🔊 Text-to-Speech Audio Playback
+torch.set_default_device("cpu")
+
 def play_audio_from_text(text, lang_code="en"):
     tts = gTTS(text=text, lang=lang_code)
     tts.save("response.mp3")
@@ -37,19 +33,20 @@ def play_audio_from_text(text, lang_code="en"):
         """
         st.markdown(md, unsafe_allow_html=True)
 
-# ========== CONFIGURATION ==========
 st.set_page_config(page_title="Indian LawBot", layout="wide")
 
-# Use Streamlit Cloud secrets
 GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
 llm = ChatGroq(api_key=GROQ_API_KEY, model_name="llama3-8b-8192")
 
-# ========== VECTORSTORE FROM PDF ==========
-@st.cache_resource
 @st.cache_resource
 def get_vectorstore():
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
     persist_dir = "faiss_index"
+    zip_path = "faiss_index.zip"
+
+    if not os.path.exists(persist_dir) and os.path.exists(zip_path):
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(persist_dir)
 
     if os.path.exists(persist_dir):
         return FAISS.load_local(persist_dir, embeddings)
@@ -64,12 +61,11 @@ def get_vectorstore():
             docs.extend(chunks)
 
     vectordb = FAISS.from_documents(docs, embedding=embeddings)
-    vectordb.save_local(persist_dir)  # 💾 Save to disk
+    vectordb.save_local(persist_dir)
     return vectordb
 
 vectorstore = get_vectorstore()
 
-# ========== STREAMLIT UI ==========
 st.sidebar.title("⚖️ Indian LawBot")
 st.sidebar.markdown("""
 ### 🛠 Quick Actions
@@ -77,13 +73,11 @@ st.sidebar.markdown("""
 - 📄 Upload documents
 - ⚖️ Find the right court
 
-ℹ️ *This assistant simplifies legal language and offers guidance before consulting a lawyer.*
+Ʝ *This assistant simplifies legal language and offers guidance before consulting a lawyer.*
 """)
 
-# Tabs
 tab1, tab2, tab3 = st.tabs(["❓ Legal Q&A", "📄 Document Help", "⚖️ Court Finder"])
 
-# ========== TAB 1 ==========
 with tab1:
     st.header("❓ Ask Your Legal Question")
     st.subheader("💬 Enter or 🎙️ Record Your Legal Question")
@@ -153,7 +147,6 @@ You're a legal expert. Explain this legal content simply like you're helping som
                     play_audio_from_text(simplified_translated, lang_code)
                 except Exception as e:
                     st.warning(f"Audio playback failed: {e}")
-
 # ========== TAB 2 ==========
 with tab2:
     st.header("📤 Upload and Analyze Legal Document")
@@ -204,7 +197,7 @@ CONTENT:
                     st.info(translated.strip())
                 except Exception as e:
                     st.error(f"❌ Error during summarization: {e}")
-                  
+
 # ========== TAB 3 ==========
 with tab3:
     st.header("⚖️ Find the Right Court for Your Case")
