@@ -163,7 +163,7 @@ with tab2:
                 chunks = splitter.split_text(raw_text)
                 docs = [Document(page_content=chunk) for chunk in chunks]
                 embedder = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-                vectordb = Chroma.from_documents(docs, embedding=embedder)
+                vectordb = FAISS.from_documents(docs, embedding=embedder)
                 local_qa = RetrievalQA.from_chain_type(llm=llm, retriever=vectordb.as_retriever(search_kwargs={"k": 5}), return_source_documents=True)
 
                 user_q = st.text_input("Ask from the document:", key="doc_user_q")
