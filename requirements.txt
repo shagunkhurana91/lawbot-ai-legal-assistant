@@ -7,7 +7,7 @@ langchain-groq
 langchain-huggingface
 deep-translator
 sentence-transformers
-chromadb
+faiss-cpu
 pyngrok
 langdetect
 huggingface-hub
