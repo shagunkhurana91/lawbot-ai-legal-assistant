@@ -5,7 +5,7 @@ from deep_translator import GoogleTranslator
 from langdetect import detect
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
-from langchain_community.vectorstores import Chroma
+from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 import torch
 
@@ -56,7 +56,7 @@ def get_vectorstore():
             chunks = splitter.split_documents(loaded)
             docs.extend(chunks)
     embedder = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    vectordb = Chroma.from_documents(docs, embedding=embedder)
+    vectordb = FAISS.from_documents(docs, embedding=embedder)
     return vectordb
 
 vectorstore = get_vectorstore()
