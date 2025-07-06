@@ -46,7 +46,14 @@ llm = ChatGroq(api_key=GROQ_API_KEY, model_name="llama3-8b-8192")
 
 # ========== VECTORSTORE FROM PDF ==========
 @st.cache_resource
+@st.cache_resource
 def get_vectorstore():
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    persist_dir = "faiss_index"
+
+    if os.path.exists(persist_dir):
+        return FAISS.load_local(persist_dir, embeddings)
+
     docs = []
     for filename in os.listdir("data"):
         if filename.endswith(".pdf"):
@@ -55,8 +62,9 @@ def get_vectorstore():
             splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
             chunks = splitter.split_documents(loaded)
             docs.extend(chunks)
-    embedder = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    vectordb = FAISS.from_documents(docs, embedding=embedder)
+
+    vectordb = FAISS.from_documents(docs, embedding=embeddings)
+    vectordb.save_local(persist_dir)  # 💾 Save to disk
     return vectordb
 
 vectorstore = get_vectorstore()
