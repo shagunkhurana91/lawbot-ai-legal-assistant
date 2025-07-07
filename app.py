@@ -59,7 +59,8 @@ def get_vectorstore():
         st.stop()
 
     try:
-        return FAISS.load_local(folder_path=persist_dir, embeddings=embeddings)
+        return FAISS.load_local(folder_path=persist_dir, embeddings=embeddings, allow_dangerous_deserialization=True)
+
     except Exception as e:
         st.error(f"❌ Failed to load FAISS index: {e}")
         st.stop()
