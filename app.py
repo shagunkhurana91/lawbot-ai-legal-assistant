@@ -37,7 +37,6 @@ st.set_page_config(page_title="Indian LawBot", layout="wide")
 
 GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
 llm = ChatGroq(api_key=GROQ_API_KEY, model_name="llama3-8b-8192")
-
 @st.cache_resource
 def get_vectorstore():
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
@@ -45,16 +44,26 @@ def get_vectorstore():
     zip_path = "faiss_index.zip"
 
     if not os.path.exists(persist_dir) and os.path.exists(zip_path):
+        os.makedirs(persist_dir, exist_ok=True)
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            zip_ref.extractall(persist_dir)
+            for file in zip_ref.namelist():
+                if file.endswith("index.faiss") or file.endswith("index.pkl"):
+                    zip_ref.extract(file, persist_dir)
 
-    if os.path.exists(persist_dir):
+    index_faiss = os.path.join(persist_dir, "index.faiss")
+    index_pkl = os.path.join(persist_dir, "index.pkl")
+
+    if not os.path.exists(index_faiss) or not os.path.exists(index_pkl):
+        st.error("❌ FAISS files not found after extraction. Ensure index.faiss and index.pkl are in the zip.")
+        st.stop()
+
+    try:
         return FAISS.load_local(persist_dir, embeddings)
+    except Exception as e:
+        st.error(f"❌ Failed to load FAISS index: {e}")
+        st.stop()
 
-    st.error("❌ FAISS index not found. Please upload 'faiss_index.zip' with index.faiss and index.pkl inside.")
-    st.stop()
 
-vectorstore = get_vectorstore()
 
 st.sidebar.title("⚖️ Indian LawBot")
 st.sidebar.markdown("""
