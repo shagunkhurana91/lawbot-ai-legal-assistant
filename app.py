@@ -63,7 +63,7 @@ def get_vectorstore():
     except Exception as e:
         st.error(f"❌ Failed to load FAISS index: {e}")
         st.stop()
-
+vectorstore = get_vectorstore()
 
 st.sidebar.title("⚖️ Indian LawBot")
 st.sidebar.markdown("""
