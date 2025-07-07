@@ -34,10 +34,9 @@ def play_audio_from_text(text, lang_code="en"):
         st.markdown(md, unsafe_allow_html=True)
 
 st.set_page_config(page_title="Indian LawBot", layout="wide")
-
 GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
-llm = ChatGroq(api_key=GROQ_API_KEY, model_name="llama3-8b-8192")
 
+llm = ChatGroq(api_key=GROQ_API_KEY, model_name="llama3-8b-8192")
 @st.cache_resource
 def get_vectorstore():
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
