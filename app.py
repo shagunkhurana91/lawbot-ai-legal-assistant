@@ -1,5 +1,4 @@
 import os
-import zipfile
 import fitz
 import streamlit as st
 from deep_translator import GoogleTranslator
@@ -20,6 +19,7 @@ import base64
 
 torch.set_default_device("cpu")
 
+# ======= AUDIO PLAYBACK =======
 def play_audio_from_text(text, lang_code="en"):
     tts = gTTS(text=text, lang=lang_code)
     tts.save("response.mp3")
@@ -33,38 +33,25 @@ def play_audio_from_text(text, lang_code="en"):
         """
         st.markdown(md, unsafe_allow_html=True)
 
+# ======= PAGE CONFIG =======
 st.set_page_config(page_title="Indian LawBot", layout="wide")
 GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
 
 llm = ChatGroq(api_key=GROQ_API_KEY, model_name="llama3-8b-8192")
-@st.cache_resource
-def get_vectorstore():
+
+# ======= FAISS VECTORSTORE (GLOBAL, CACHED) =======
+@st.cache_resource(show_spinner=True)
+def load_faiss_index():
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    persist_dir = "faiss_index"
-    zip_path = "faiss_index.zip"
-
-    # Extract flat zip files directly into persist_dir
-    if not os.path.exists(persist_dir):
-        os.makedirs(persist_dir, exist_ok=True)
-        if os.path.exists(zip_path):
-            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                zip_ref.extractall(persist_dir)
-
-    index_faiss = os.path.join(persist_dir, "index.faiss")
-    index_pkl = os.path.join(persist_dir, "index.pkl")
-
-    if not os.path.exists(index_faiss) or not os.path.exists(index_pkl):
-        st.error("❌ FAISS files not found after extraction. Ensure index.faiss and index.pkl exist in the zip.")
+    persist_dir = "faiss_index"  # Make sure you deploy the extracted folder, not zip
+    if not os.path.exists(os.path.join(persist_dir, "index.faiss")) or not os.path.exists(os.path.join(persist_dir, "index.pkl")):
+        st.error("❌ FAISS index files not found! Deploy extracted folder 'faiss_index'.")
         st.stop()
+    return FAISS.load_local(folder_path=persist_dir, embeddings=embeddings, allow_dangerous_deserialization=True)
 
-    try:
-        return FAISS.load_local(folder_path=persist_dir, embeddings=embeddings, allow_dangerous_deserialization=True)
+vectorstore = load_faiss_index()
 
-    except Exception as e:
-        st.error(f"❌ Failed to load FAISS index: {e}")
-        st.stop()
-vectorstore = get_vectorstore()
-
+# ======= SIDEBAR =======
 st.sidebar.title("⚖️ Indian LawBot")
 st.sidebar.markdown("""
 ### 🛠 Quick Actions
@@ -75,8 +62,10 @@ st.sidebar.markdown("""
 Ʝ *This assistant simplifies legal language and offers guidance before consulting a lawyer.*
 """)
 
+# ======= TABS =======
 tab1, tab2, tab3 = st.tabs(["❓ Legal Q&A", "📄 Document Help", "⚖️ Court Finder"])
 
+# ======= TAB 1: LEGAL Q&A =======
 with tab1:
     st.header("❓ Ask Your Legal Question")
     st.subheader("💬 Enter or 🎙️ Record Your Legal Question")
@@ -86,7 +75,6 @@ with tab1:
     audio_file = st.file_uploader("Upload audio file", type=["wav"])
 
     voice_query = None
-
     if audio_file is not None:
         try:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
@@ -113,7 +101,11 @@ with tab1:
         detected_lang = detect(final_query)
         translated_query = GoogleTranslator(source="auto", target="en").translate(final_query)
 
-        qa_chain = RetrievalQA.from_chain_type(llm=llm, retriever=vectorstore.as_retriever(search_kwargs={"k": 5}), return_source_documents=True)
+        qa_chain = RetrievalQA.from_chain_type(
+            llm=llm, 
+            retriever=vectorstore.as_retriever(search_kwargs={"k": 5}), 
+            return_source_documents=True
+        )
         result = qa_chain(translated_query)
         legal_answer_en = result['result']
         legal_answer_translated = GoogleTranslator(source='en', target=detected_lang).translate(legal_answer_en)
@@ -146,10 +138,19 @@ You're a legal expert. Explain this legal content simply like you're helping som
                     play_audio_from_text(simplified_translated, lang_code)
                 except Exception as e:
                     st.warning(f"Audio playback failed: {e}")
-# ========== TAB 2 ==========
+
+# ======= TAB 2: DOCUMENT HELP =======
 with tab2:
     st.header("📤 Upload and Analyze Legal Document")
     uploaded_file = st.file_uploader("Upload PDF or TXT legal document", type=['pdf', 'txt'], key="doc_upload")
+
+    @st.cache_resource(show_spinner=False)
+    def get_doc_vectorstore(raw_text):
+        splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+        chunks = splitter.split_text(raw_text)
+        docs = [Document(page_content=chunk) for chunk in chunks]
+        embedder = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+        return FAISS.from_documents(docs, embedder)
 
     if uploaded_file:
         ext = uploaded_file.name.split(".")[-1].lower()
@@ -167,12 +168,12 @@ with tab2:
             action = st.radio("Choose action:", ["Ask Questions", "Summarize Document"], key="doc_action")
 
             if action == "Ask Questions":
-                splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
-                chunks = splitter.split_text(raw_text)
-                docs = [Document(page_content=chunk) for chunk in chunks]
-                embedder = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-                vectordb = FAISS.from_documents(docs, embedding=embedder)
-                local_qa = RetrievalQA.from_chain_type(llm=llm, retriever=vectordb.as_retriever(search_kwargs={"k": 5}), return_source_documents=True)
+                vectordb = get_doc_vectorstore(raw_text)
+                local_qa = RetrievalQA.from_chain_type(
+                    llm=llm, 
+                    retriever=vectordb.as_retriever(search_kwargs={"k": 5}), 
+                    return_source_documents=True
+                )
 
                 user_q = st.text_input("Ask from the document:", key="doc_user_q")
                 if user_q:
@@ -191,13 +192,13 @@ CONTENT:
 """
                 try:
                     response = llm.invoke(short_prompt).content.strip()
-                    translated = GoogleTranslator(source="en", target=detected_lang).translate(response)
+                    translated = GoogleTranslator(source='en', target=detected_lang).translate(response)
                     st.markdown("### 📄 Document Summary")
                     st.info(translated.strip())
                 except Exception as e:
                     st.error(f"❌ Error during summarization: {e}")
 
-# ========== TAB 3 ==========
+# ======= TAB 3: COURT FINDER =======
 with tab3:
     st.header("⚖️ Find the Right Court for Your Case")
 
@@ -253,15 +254,10 @@ with tab3:
         st.markdown("### 🧭 Recommended Court")
         st.success(suggestion)
 
-# ========== STYLE ==========
+# ======= STYLING =======
 st.markdown("""
 <style>
-div.stAlert > div {
-    font-size: 16px;
-}
-section.main > div {
-    padding-top: 15px;
-}
+div.stAlert > div { font-size: 16px; }
+section.main > div { padding-top: 15px; }
 </style>
 """, unsafe_allow_html=True)
-
