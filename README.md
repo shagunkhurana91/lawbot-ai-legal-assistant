@@ -63,7 +63,6 @@ GROQ_API_KEY = "your_groq_api_key"
 ## 🟢 Live Demo
 
 > ✅ [Click to Try It on Streamlit Cloud](https://lawbot-ai-legal-assistant-4tpfcagmnsjcza65pjyjjz.streamlit.app/)  
-*(Link placeholder – update it after deployment)*
 
 ---
 
