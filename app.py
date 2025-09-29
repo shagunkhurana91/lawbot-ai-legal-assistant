@@ -1,3 +1,4 @@
+```python
 import os
 import fitz
 import streamlit as st
@@ -106,7 +107,8 @@ with tab1:
             retriever=vectorstore.as_retriever(search_kwargs={"k": 5}), 
             return_source_documents=True
         )
-        result = qa_chain(translated_query)
+        # ✅ FIXED: Pass dict instead of string
+        result = qa_chain({"query": translated_query})
         legal_answer_en = result['result']
         legal_answer_translated = GoogleTranslator(source='en', target=detected_lang).translate(legal_answer_en)
 
@@ -178,7 +180,8 @@ with tab2:
                 user_q = st.text_input("Ask from the document:", key="doc_user_q")
                 if user_q:
                     translated_q = GoogleTranslator(source="auto", target="en").translate(user_q)
-                    result = local_qa(translated_q)
+                    # ✅ FIXED: Pass dict instead of string
+                    result = local_qa({"query": translated_q})
                     ans_en = result["result"]
                     ans_trans = GoogleTranslator(source="en", target=detected_lang).translate(ans_en)
                     st.success(ans_trans)
@@ -261,3 +264,5 @@ div.stAlert > div { font-size: 16px; }
 section.main > div { padding-top: 15px; }
 </style>
 """, unsafe_allow_html=True)
+```
+
