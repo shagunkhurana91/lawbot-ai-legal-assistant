@@ -1,23 +1,26 @@
 import os
-import fitz
+import fitz  # PyMuPDF
 import streamlit as st
 from deep_translator import GoogleTranslator
 from langdetect import detect
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+import torch
+import tempfile
+import base64
+import traceback
+import speech_recognition as sr
+from pydub import AudioSegment
+from gtts import gTTS
+
+# ====== LANGCHAIN IMPORTS (Updated for v0.2+) ======
+from langchain.text_splitters import RecursiveCharacterTextSplitter  # ✅ new correct path
 from langchain_core.documents import Document
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
-import torch
-from langchain.document_loaders import PyMuPDFLoader
+from langchain_community.document_loaders import PyMuPDFLoader  # ✅ moved here
 from langchain.chains import RetrievalQA
 from langchain_groq import ChatGroq
-import speech_recognition as sr
-from pydub import AudioSegment
-import tempfile
-from gtts import gTTS
-import base64
-import traceback
 
+# ====== TORCH CONFIG ======
 torch.set_default_device("cpu")
 
 # ======= AUDIO PLAYBACK =======
